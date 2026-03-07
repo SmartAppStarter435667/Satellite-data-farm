@@ -1,43 +1,46 @@
-name: AI Satellite Reporter
+name: Global Satellite Portal
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   schedule:
-    - cron: '0 0 * * 1'
+    - cron: '0 0 * * *' # 毎日0時に更新
   workflow_dispatch:
 
 jobs:
-  report-and-deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # 1. Pythonで衛星データを取得してJSONを保存
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-
-      - name: Install dependencies
+      - name: Install Python dependencies
         run: pip install earthengine-api google-genai
-
-      - name: Run Script
+      - name: Fetch Satellite Data
         env:
           EE_SERVICE_ACCOUNT_JSON: ${{ secrets.EE_SERVICE_ACCOUNT_JSON }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: python main.py
+        run: python data_processor.py
 
-      - name: Install Wrangler
-        run: npm install -g wrangler
+      # 2. React (Node.js) でフロントエンドをビルド
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install & Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
 
-      - name: Deploy to Cloudflare Pages
+      # 3. Cloudflare Pagesへデプロイ (ビルド結果の dist フォルダをアップ)
+      - name: Deploy to Cloudflare
         uses: cloudflare/wrangler-action@v3
-        env:
-          # Secretからプロジェクト名を変数として読み込む
-          PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          # $PROJECT_NAME ではなく ${{ env.PROJECT_NAME }} に書き換えます
-          command: pages deploy public --project-name=${{ env.PROJECT_NAME }} --commit-dirty=true
+          command: pages deploy frontend/dist --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME }} --commit-dirty=true
