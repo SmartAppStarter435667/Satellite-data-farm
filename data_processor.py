@@ -8,73 +8,65 @@ with open("service_account.json", "w") as f: f.write(EE_JSON)
 ee.Initialize(ee.ServiceAccountCredentials("your-account", "service_account.json"))
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# 47都道府県 + 海外代表地点
+# 地点データ (47都道府県の座標をここへ追加)
 LOCATIONS = {
     "japan": [
         {"id": "hokkaido", "name": "北海道", "lat": 43.06, "lon": 141.35},
-        {"id": "aomori", "name": "青森県", "lat": 40.82, "lon": 140.74},
-        # ... (中略：実際にはここに47個すべて入りますが、コードを短くするため代表例を記載)
         {"id": "saga", "name": "佐賀県", "lat": 33.26, "lon": 130.30},
-        {"id": "okinawa", "name": "沖縄県", "lat": 26.21, "lon": 127.68}
+        {"id": "tokyo", "name": "東京都", "lat": 35.68, "lon": 139.69},
+        # 他の県も同様に追加
     ],
     "overseas": [
-        {"id": "ny", "name": "ニューヨーク", "lat": 40.71, "lon": -74.00},
-        {"id": "paris", "name": "パリ", "lat": 48.85, "lon": 2.35},
-        {"id": "sydney", "name": "シドニー", "lat": -33.86, "lon": 151.20}
+        {"id": "california", "name": "カリフォルニア (農場地帯)", "lat": 36.77, "lon": -119.41},
+        {"id": "vietnam", "name": "ベトナム (メコンデルタ)", "lat": 10.03, "lon": 105.78}
     ]
 }
 
-def get_landsat_data(lat, lon):
+def get_data(lat, lon):
     try:
-        roi = ee.Geometry.Point([lon, lat]).buffer(5000).bounds()
-        # Landsat 8/9 Collection 2 Level 2 を使用
+        roi = ee.Geometry.Point([lon, lat]).buffer(3000).bounds()
+        # Landsat 8/9 データの取得
         img = ee.ImageCollection("LANDSAT/LC08/C02/T1_L2") \
             .filterBounds(roi) \
-            .filterDate(datetime.now() - timedelta(days=120), datetime.now()) \
+            .filterDate(datetime.now() - timedelta(days=180), datetime.now()) \
             .sort('CLOUD_COVER') \
             .first()
 
-        # 画像URL (Landsatのバンド: B4=Red, B3=Green, B2=Blue)
-        img_url = img.getThumbURL({'bands':['SR_B4','SR_B3','SR_B2'], 'min':0, 'max':20000, 'dimensions':600, 'format':'png'})
-        
-        # 数値取得
+        img_url = img.getThumbURL({'bands':['SR_B4','SR_B3','SR_B2'], 'min':0, 'max':20000, 'dimensions':800, 'format':'png'})
         stats = img.reduceRegion(ee.Reducer.mean(), roi, 30).getInfo()
         
-        # 指標計算 (Landsat 8: B5=NIR, B4=Red, B3=Green)
+        # 指標計算
         ndvi = (stats['SR_B5'] - stats['SR_B4']) / (stats['SR_B5'] + stats['SR_B4'])
         ndwi = (stats['SR_B3'] - stats['SR_B5']) / (stats['SR_B3'] + stats['SR_B5'])
-        temp_k = stats.get('ST_B10', 0)
-        lst_c = (temp_k * 0.00341802 + 149.0) - 273.15 if temp_k else 0
+        lst_c = (stats.get('ST_B10', 0) * 0.00341802 + 149.0) - 273.15
         cloud = img.get('CLOUD_COVER').getInfo()
+        date_str = img.date().format('YYYY年MM月DD日').getInfo() # 日付フォーマット修正
 
-        # AI分析 (お天気キャスター風)
-        ai_text = "衛星データの解析に時間がかかっています。"
-        for _ in range(3): # 3回リトライ
-            try:
-                prompt = f"地表温度{lst_c:.1f}度、植生指数{ndvi:.2f}。この地域の農業・環境状況を、お天気お姉さんのように親しみやすく1行で伝えて。"
-                response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-                ai_text = response.text
-                break
-            except: time.sleep(15)
+        # 農業B2B向けAI分析
+        ai_text = "分析中..."
+        try:
+            prompt = f"Landsatデータ分析：植生指数{ndvi:.2f}, 地表温度{lst_c:.1f}度。この農地の生育状況と今後のリスクを、専門家として農家にアドバイスして（30文字以内）。"
+            response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+            ai_text = response.text
+        except: time.sleep(10)
 
         return {
-            "img": img_url, "ndvi": round(ndvi, 2), "ndwi": round(ndwi, 2),
-            "temp": round(lst_c, 1), "cloud": round(cloud, 1), "ai": ai_text,
-            "date": img.date().format('YYYY-MM-DD').getInfo()
+            "img": img_url, "ndvi": round(ndvi, 3), "ndwi": round(ndwi, 3),
+            "temp": round(lst_c, 1), "cloud": round(cloud, 1), 
+            "ai": ai_text, "date": date_str, "sat": "Landsat 8/9"
         }
     except: return None
 
 def main():
-    final_data = {"japan": [], "overseas": []}
-    for category in ["japan", "overseas"]:
-        for loc in LOCATIONS[category]:
-            print(f"Fetching {loc['name']}...")
-            res = get_landsat_data(loc['lat'], loc['lon'])
-            if res: final_data[category].append({**loc, **res})
-            time.sleep(10) # 47件あるので制限回避のため長めに待機
-
+    final = {"japan": [], "overseas": []}
+    for cat in ["japan", "overseas"]:
+        for loc in LOCATIONS[cat]:
+            res = get_data(loc['lat'], loc['lon'])
+            if res: final[cat].append({**loc, **res})
+            time.sleep(5)
+    
     os.makedirs("frontend/src", exist_ok=True)
     with open("frontend/src/data.json", "w", encoding="utf-8") as f:
-        json.dump(final_data, f, ensure_ascii=False, indent=2)
+        json.dump(final, f, ensure_ascii=False, indent=2)
 
 if __name__ == "__main__": main()
