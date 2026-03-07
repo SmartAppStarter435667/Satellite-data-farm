@@ -3,40 +3,49 @@ import data from './data.json';
 
 const App = () => {
   return (
-    <div className="min-h-screen bg-black text-slate-200">
-      <header className="p-8 border-b border-white/10 text-center">
-        <h1 className="text-3xl font-black tracking-widest text-emerald-400">JAPAN SAT-EYE</h1>
-        <p className="text-sm text-slate-500 mt-2">47 Prefectures Real-time Monitoring</p>
+    <div className="min-h-screen bg-[#0a0a0a] text-slate-100 p-4 md:p-10">
+      <header className="mb-12 text-center">
+        <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">
+          JAPAN SATELLITE PORTAL
+        </h1>
+        <p className="text-slate-500 mt-2 italic text-sm">Comprehensive Earth Observation Data</p>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {data.map((pref: any) => (
-          <div key={pref.id} className="bg-zinc-900 rounded-2xl overflow-hidden border border-white/5 hover:border-emerald-500/50 transition-all shadow-2xl">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-7xl mx-auto">
+        {data.map((item: any) => (
+          <div key={item.id} className="bg-zinc-900/50 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-sm">
             <div className="relative aspect-video">
-              <img src={pref.img} alt={pref.name} className="w-full h-full object-cover" />
-              <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur text-[10px] px-2 py-1 rounded">
-                Observed: {pref.date}
+              <img src={item.img} className="w-full h-full object-cover" alt={item.name} />
+              <div className="absolute top-4 left-4 bg-black/60 px-3 py-1 rounded-full text-xs font-mono border border-white/10">
+                {item.date}
               </div>
             </div>
+
             <div className="p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">{pref.name}</h2>
-                <div className="text-right">
-                  <span className="text-[10px] block text-slate-500 uppercase tracking-tighter">NDVI Index</span>
-                  <span className={`text-lg font-mono font-bold ${pref.ndvi > 0.4 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {pref.ndvi}
-                  </span>
-                </div>
-              </div>
-              <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full" style={{ width: `${Math.max(0, pref.ndvi * 100)}%` }}></div>
+              <h2 className="text-2xl font-bold mb-6 flex items-center">
+                <span className="w-2 h-8 bg-cyan-500 rounded-full mr-3"></span>
+                {item.name}
+              </h2>
+
+              <div className="grid grid-cols-2 gap-4">
+                <DataCard label="植生(NDVI)" value={item.ndvi} color="text-emerald-400" />
+                <DataCard label="水指数(NDWI)" value={item.ndwi} color="text-blue-400" />
+                <DataCard label="地表温度" value={`${item.temp}℃`} color="text-orange-400" />
+                <DataCard label="雲量" value={`${item.cloud}%`} color="text-slate-400" />
               </div>
             </div>
           </div>
         ))}
-      </main>
+      </div>
     </div>
   );
 };
+
+const DataCard = ({ label, value, color }: any) => (
+  <div className="bg-white/5 p-3 rounded-2xl border border-white/5">
+    <p className="text-[10px] text-slate-500 uppercase font-bold tracking-widest mb-1">{label}</p>
+    <p className={`text-xl font-mono font-bold ${color}`}>{value}</p>
+  </div>
+);
 
 export default App;
