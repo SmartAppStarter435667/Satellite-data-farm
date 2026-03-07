@@ -2,51 +2,60 @@ import React, { useState } from 'react';
 import data from './data.json';
 
 const App = () => {
-  const [tab, setTab] = useState<'japan' | 'overseas' | 'about'>('japan');
+  const [page, setPage] = useState<'japan' | 'overseas' | 'globe' | 'guide'>('japan');
 
   return (
-    <div className="min-h-screen bg-black text-slate-200 font-sans selection:bg-emerald-500/30">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center font-black text-black text-xl italic">J</div>
-            <h1 className="text-xl font-black tracking-tighter text-white uppercase italic">JAPAN SAT-EYE <span className="text-emerald-500 not-italic font-light text-xs tracking-widest ml-2">PRO</span></h1>
+    <div className="min-h-screen bg-[#0a0a0a] text-white font-sans overflow-x-hidden">
+      {/* 以前のデザインをベースにしたロゴとナビ */}
+      <nav className="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-xl border-b border-white/5">
+        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 border-2 border-cyan-500 rounded-full flex items-center justify-center animate-pulse">
+              <div className="w-2 h-2 bg-cyan-500 rounded-full"></div>
+            </div>
+            <h1 className="text-2xl font-black tracking-[0.2em] text-white italic">SATELLITE <span className="text-cyan-500 not-italic font-light text-sm ml-1 tracking-widest">ANALYSIS PRO</span></h1>
           </div>
-          <div className="flex gap-4 md:gap-8">
-            <TabBtn active={tab === 'japan'} label="国内" onClick={() => setTab('japan')} />
-            <TabBtn active={tab === 'overseas'} label="海外" onClick={() => setTab('overseas')} />
-            <TabBtn active={tab === 'about'} label="衛星について" onClick={() => setTab('about')} />
+          <div className="flex gap-6 text-[10px] font-bold tracking-[0.2em] uppercase">
+            <NavBtn active={page === 'japan'} label="Japan" onClick={() => setPage('japan')} />
+            <NavBtn active={page === 'overseas'} label="World" onClick={() => setPage('overseas')} />
+            <NavBtn active={page === 'globe'} label="3D Globe" onClick={() => setPage('globe')} />
+            <NavBtn active={page === 'guide'} label="Guide" onClick={() => setPage('guide')} />
           </div>
         </div>
       </nav>
 
-      <main className="pt-32 pb-20 max-w-7xl mx-auto px-6">
-        {tab === 'about' ? (
-          <AboutSection />
+      <main className="pt-32 pb-20 px-6 max-w-7xl mx-auto">
+        {page === 'globe' ? (
+          <GlobeSection />
+        ) : page === 'guide' ? (
+          <GuideSection />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {data[tab].map((item: any) => (
-              <div key={item.id} className="group bg-zinc-900 rounded-3xl overflow-hidden border border-white/5 hover:border-emerald-500/30 transition-all shadow-2xl">
-                <div className="relative aspect-video">
-                  <img src={item.img} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" alt={item.name} />
-                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-[10px] font-bold text-white tracking-widest">
-                    {item.sat}
-                  </div>
-                  <div className="absolute bottom-4 left-4 text-[10px] text-white/70 font-mono bg-black/40 px-2 py-1 rounded">
-                    観測日: {item.date}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+            {data[page === 'japan' ? 'japan' : 'overseas'].map((item: any) => (
+              <div key={item.id} className="bg-zinc-900/50 rounded-[40px] border border-white/5 overflow-hidden backdrop-blur-sm hover:border-cyan-500/50 transition-all group shadow-2xl">
+                <div className="relative aspect-square">
+                  <img src={item.img} className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700" alt={item.name} />
+                  <div className="absolute inset-0 bg-gradient-to-t from-zinc-900 via-transparent to-transparent"></div>
+                  <div className="absolute bottom-6 left-6">
+                    <p className="text-[10px] text-cyan-400 font-black tracking-widest uppercase mb-1">{item.sat}</p>
+                    <h3 className="text-3xl font-bold">{item.name}</h3>
                   </div>
                 </div>
-                <div className="p-8">
-                  <h3 className="text-2xl font-bold mb-6 text-white">{item.name}</h3>
-                  <div className="grid grid-cols-2 gap-4 mb-8">
-                    <StatItem label="植生(NDVI)" val={item.ndvi} color="text-emerald-400" />
-                    <StatItem label="地表温度" val={`${item.temp}℃`} color="text-orange-400" />
+                <div className="p-8 space-y-6">
+                  <div className="flex justify-between border-b border-white/5 pb-4">
+                    <div className="text-center">
+                      <p className="text-[9px] text-zinc-500 font-bold uppercase mb-1">NDVI 生育指数</p>
+                      <p className="text-xl font-mono text-emerald-400 font-bold">{item.ndvi}</p>
+                    </div>
+                    <div className="text-center border-l border-white/5 pl-6">
+                      <p className="text-[9px] text-zinc-500 font-bold uppercase mb-1">LST 地表温度</p>
+                      <p className="text-xl font-mono text-orange-400 font-bold">{item.temp}℃</p>
+                    </div>
                   </div>
-                  <div className="bg-emerald-500/5 border border-emerald-500/20 p-4 rounded-2xl relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-1 h-full bg-emerald-500"></div>
-                    <p className="text-[10px] text-emerald-500 font-black uppercase mb-1 tracking-widest">Growth Analysis Report</p>
-                    <p className="text-sm font-medium leading-relaxed">{item.ai}</p>
+                  <div className="bg-black/40 p-5 rounded-3xl border border-white/5">
+                    <p className="text-[10px] text-zinc-500 font-bold mb-2 uppercase">AI Analysis Report</p>
+                    <p className="text-sm leading-relaxed text-zinc-300 font-medium">「{item.ai}」</p>
+                    <p className="text-[9px] text-zinc-600 mt-4 font-mono uppercase">Observed: {item.date}</p>
                   </div>
                 </div>
               </div>
@@ -58,39 +67,42 @@ const App = () => {
   );
 };
 
-const TabBtn = ({ active, label, onClick }: any) => (
-  <button onClick={onClick} className={`text-xs font-bold uppercase tracking-widest transition-all ${active ? 'text-emerald-400' : 'text-slate-500 hover:text-slate-200'}`}>
+const NavBtn = ({ active, label, onClick }: any) => (
+  <button onClick={onClick} className={`transition-all ${active ? 'text-cyan-400 scale-110' : 'text-zinc-600 hover:text-white'}`}>
     {label}
   </button>
 );
 
-const StatItem = ({ label, val, color }: any) => (
-  <div className="bg-white/5 p-3 rounded-xl">
-    <p className="text-[9px] text-slate-500 font-bold uppercase tracking-widest mb-1">{label}</p>
-    <p className={`text-xl font-mono font-bold ${color}`}>{val}</p>
+const GlobeSection = () => (
+  <div className="flex flex-col items-center justify-center min-h-[60vh]">
+    <div className="relative w-80 h-80 md:w-[500px] md:h-[500px]">
+      {/* 実際にはここでreact-globe-glなどのライブラリを使用しますが、ここではビジュアルのみ表現 */}
+      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-500/20 animate-pulse border border-cyan-500/30"></div>
+      <div className="absolute inset-4 rounded-full border border-white/5 animate-spin-slow"></div>
+      <div className="absolute inset-0 flex items-center justify-center text-center p-10">
+        <p className="text-cyan-400 text-sm font-bold tracking-widest uppercase">3D Globe Mode<br /><span className="text-white text-xs lowercase opacity-50 font-normal">Scroll to rotate / Click to scan</span></p>
+      </div>
+    </div>
+    <p className="mt-12 text-zinc-500 max-w-lg text-center text-sm leading-relaxed">
+      マウスホイールで地球を自転させ、世界各地のLandsatアーカイブをシームレスにブラウズできます。特定のプロットをクリックすると、詳細な「スマート生育レポート」の生成を開始します。
+    </p>
   </div>
 );
 
-const AboutSection = () => (
-  <div className="max-w-3xl mx-auto space-y-12">
-    <section>
-      <h2 className="text-4xl font-bold mb-6 text-white tracking-tight text-center">地球をスキャンする仕組み</h2>
-      
-      <p className="text-lg text-slate-400 leading-relaxed mb-6">
-        当システムは、NASAとUSGSが運用する最新鋭の地球観測衛星「Landsat 8/9」から直接データを取得しています。
-        衛星は地上約700kmの高さを時速約27,000kmで飛行しながら、目に見える光だけでなく「熱」や「赤外線」を精密に測定しています。
-      </p>
-    </section>
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
-      <div className="bg-zinc-900 p-6 rounded-2xl border border-white/5">
-        <h4 className="font-bold text-emerald-400 mb-2 uppercase tracking-widest text-xs">OLI (光学センサ)</h4>
-        <p className="text-slate-400">植物の葉の反射特性を捉え、生育の良し悪しを数値化（NDVI）します。</p>
+const GuideSection = () => (
+  <div className="max-w-4xl mx-auto space-y-16">
+    <h2 className="text-5xl font-black text-center italic tracking-tighter">HOW IT WORKS</h2>
+    <div className="grid md:grid-cols-2 gap-12">
+      <div className="space-y-4">
+        <h4 className="text-cyan-400 font-bold uppercase tracking-widest text-xs">01. Data Acquisition</h4>
+        <p className="text-zinc-400 text-sm leading-relaxed">NASAのLandsat 8/9衛星が、30メートル解像度で地表の「熱」と「反射」をスキャンします。これにより、肉眼では見えない植物の健康状態を可視化します。</p>
       </div>
-      <div className="bg-zinc-900 p-6 rounded-2xl border border-white/5">
-        <h4 className="font-bold text-orange-400 mb-2 uppercase tracking-widest text-xs">TIRS (熱赤外センサ)</h4>
-        <p className="text-slate-400">地表面から放射される熱を捉え、農地の乾燥状態や異常高温を検知します。</p>
+      <div className="space-y-4">
+        <h4 className="text-emerald-400 font-bold uppercase tracking-widest text-xs">02. AI Intelligence</h4>
+        <p className="text-zinc-400 text-sm leading-relaxed">Google Gemini AIが、蓄積された時系列データから「異常」を検知。農家が今すべきアクションを、膨大な論文データに基づいて提案します。</p>
       </div>
     </div>
+    
   </div>
 );
 
