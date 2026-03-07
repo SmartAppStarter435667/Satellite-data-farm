@@ -3,39 +3,37 @@ import data from './data.json';
 
 const App = () => {
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-sans">
-      <nav className="p-6 border-b border-white/10 backdrop-blur-md sticky top-0 z-50">
-        <h1 className="text-2xl font-black tracking-tighter text-cyan-400">JAPAN SATELLITE <span className="text-white">EYE</span></h1>
-      </nav>
+    <div className="min-h-screen bg-black text-slate-200">
+      <header className="p-8 border-b border-white/10 text-center">
+        <h1 className="text-3xl font-black tracking-widest text-emerald-400">JAPAN SAT-EYE</h1>
+        <p className="text-sm text-slate-500 mt-2">47 Prefectures Real-time Monitoring</p>
+      </header>
 
-      <main className="p-4 md:p-10 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {data.map((item: any) => (
-            <div key={item.id} className="group bg-[#111] border border-white/5 rounded-2xl overflow-hidden hover:border-cyan-500/50 transition-all">
-              <div className="relative aspect-video">
-                <img src={item.img} className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-700" alt={item.name} />
-                <div className="absolute top-4 right-4 bg-black/60 backdrop-blur px-3 py-1 rounded-full text-xs font-mono">
-                  {item.date}
-                </div>
-              </div>
-              
-              <div className="p-6">
-                <div className="flex justify-between items-end mb-4">
-                  <h2 className="text-2xl font-bold">{item.name}</h2>
-                  <div className="text-right">
-                    <p className="text-[10px] text-gray-500 uppercase tracking-widest">NDVI Index</p>
-                    <p className={`text-xl font-mono font-bold ${item.ndvi > 0.4 ? 'text-green-400' : 'text-yellow-400'}`}>
-                      {item.ndvi}
-                    </p>
-                  </div>
-                </div>
-                <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-cyan-500" style={{ width: `${(item.ndvi + 1) * 50}%` }}></div>
-                </div>
+      <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {data.map((pref: any) => (
+          <div key={pref.id} className="bg-zinc-900 rounded-2xl overflow-hidden border border-white/5 hover:border-emerald-500/50 transition-all shadow-2xl">
+            <div className="relative aspect-video">
+              <img src={pref.img} alt={pref.name} className="w-full h-full object-cover" />
+              <div className="absolute bottom-2 right-2 bg-black/70 backdrop-blur text-[10px] px-2 py-1 rounded">
+                Observed: {pref.date}
               </div>
             </div>
-          ))}
-        </div>
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-bold">{pref.name}</h2>
+                <div className="text-right">
+                  <span className="text-[10px] block text-slate-500 uppercase tracking-tighter">NDVI Index</span>
+                  <span className={`text-lg font-mono font-bold ${pref.ndvi > 0.4 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {pref.ndvi}
+                  </span>
+                </div>
+              </div>
+              <div className="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                <div className="bg-emerald-500 h-full" style={{ width: `${Math.max(0, pref.ndvi * 100)}%` }}></div>
+              </div>
+            </div>
+          </div>
+        ))}
       </main>
     </div>
   );
