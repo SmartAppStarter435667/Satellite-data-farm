@@ -16,13 +16,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Python 3.11 以上にアップグレードして警告を解消
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.12' 
 
+      # ライブラリを google-genai に変更
       - name: Install dependencies
-        run: pip install earthengine-api google-generativeai
+        run: pip install earthengine-api google-genai
 
       - name: Run Script
         env:
