@@ -3,39 +3,50 @@ import ee
 from google import genai
 from datetime import datetime, timedelta
 
-# 認証設定 (前回の設定を継承)
+# 1. 認証設定
 EE_JSON = os.getenv("EE_SERVICE_ACCOUNT_JSON")
 with open("service_account.json", "w") as f:
     f.write(EE_JSON)
-ee.Initialize(ee.ServiceAccountCredentials("your-service-account@project.iam.gserviceaccount.com", "service_account.json"))
 
+ee.Initialize(ee.ServiceAccountCredentials("your-service-account@project.iam.gserviceaccount.com", "service_account.json"))
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-# 解析対象リスト（ここを増やすだけで世界中に対応可能）
+# 2. 監視地点リスト (ここを増やすだけで無限にページが作れます)
 LOCATIONS = [
     {"id": "saga", "name": "佐賀 (日本)", "coords": [130.2, 33.2, 130.3, 33.3]},
-    {"id": "tokyo", "name": "東京 (日本)", "coords": [139.7, 35.6, 139.8, 35.7]},
-    {"id": "amazon", "name": "アマゾン (ブラジル)", "coords": [-62.0, -10.0, -61.5, -9.5]},
-    {"id": "sahara", "name": "サハラ砂漠 (アフリカ)", "coords": [20.0, 25.0, 21.0, 26.0]}
+    {"id": "hokkaido", "name": "十勝平野 (日本)", "coords": [143.0, 42.8, 143.2, 43.0]},
+    {"id": "california", "name": "カリフォルニア (米国)", "coords": [-121.0, 37.0, -120.5, 37.5]},
+    {"id": "nile", "name": "ナイルデルタ (エジプト)", "coords": [31.0, 30.5, 31.5, 31.0]}
 ]
 
-def get_satellite_data(coords, location_id):
-    """GEEから画像URLとNDVI数値を取得"""
+def get_satellite_data(coords):
+    """GEEから画像URLと解析値を取得"""
     roi = ee.Geometry.Rectangle(coords)
-    s2 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(roi).filterDate('2024-01-01', '2024-03-01').filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10)).median()
-    
+    # 最新の雲が少ない画像を取得
+    s2 = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED") \
+        .filterBounds(roi) \
+        .filterDate(datetime.now() - timedelta(days=30), datetime.now()) \
+        .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 10)) \
+        .median()
+
     # NDVI計算
     ndvi = s2.normalizedDifference(['B8', 'B4']).rename('NDVI')
     ndvi_val = ndvi.reduceRegion(reducer=ee.Reducer.mean(), geometry=roi, scale=30).getInfo().get('NDVI', 0)
     
-    # 画像URL生成 (サムネイルとして表示可能)
-    vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 3000}
-    img_url = s2.getThumbURL({'params': vis_params, 'dimensions': 512, 'format': 'png'})
+    # 【修正ポイント】PNG出力用にRGBバンド(B4, B3, B2)のみを選択
+    vis_params = {
+        'bands': ['B4', 'B3', 'B2'],
+        'min': 0,
+        'max': 3000,
+        'dimensions': 600,
+        'format': 'png'
+    }
+    img_url = s2.select(['B4', 'B3', 'B2']).getThumbURL(vis_params)
     
     return {"ndvi": ndvi_val, "img_url": img_url}
 
-def generate_html_page(title, content, menu_html, filename):
-    """共通テンプレートを使用したHTML生成"""
+def generate_html(title, content, menu, filename):
+    """記事風レイアウトのHTML生成"""
     html = f"""
     <!DOCTYPE html>
     <html lang="ja">
@@ -44,19 +55,19 @@ def generate_html_page(title, content, menu_html, filename):
         <title>{title} | Satellite Portal</title>
         <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
         <style>
-            body {{ display: flex; margin: 0; background: #0b1021; color: #e2e8f0; }}
-            nav {{ width: 250px; background: #161b22; height: 100vh; padding: 20px; position: fixed; border-right: 1px solid #30363d; }}
-            main {{ margin-left: 280px; padding: 40px; width: 100%; }}
-            .card {{ background: #1c2128; border: 1px solid #30363d; border-radius: 8px; padding: 20px; margin-bottom: 20px; }}
-            .sat-img {{ width: 100%; border-radius: 8px; border: 1px solid #444; }}
-            .nav-link {{ display: block; padding: 10px; color: #58a6ff; text-decoration: none; }}
-            .nav-link:hover {{ background: #21262d; }}
+            body {{ display: grid; grid-template-columns: 250px 1fr; gap: 20px; background: #0b1021; color: #e2e8f0; }}
+            nav {{ background: #161b22; padding: 20px; height: 100vh; position: sticky; top: 0; }}
+            .card {{ background: #1c2128; border-radius: 12px; padding: 25px; margin-bottom: 30px; border: 1px solid #30363d; }}
+            .sat-img {{ width: 100%; border-radius: 8px; box-shadow: 0 0 20px rgba(0,240,255,0.2); }}
+            h1, h2, h3 {{ color: #00f0ff; }}
+            .nav-link {{ display: block; padding: 10px; color: #8b949e; text-decoration: none; border-bottom: 1px solid #30363d; }}
+            .nav-link:hover {{ color: #00f0ff; background: #21262d; }}
         </style>
     </head>
     <body>
         <nav>
-            <h2>🛰️ Satellite Menu</h2>
-            {menu_html}
+            <h3>MENU</h3>
+            {menu}
         </nav>
         <main>
             <h1>{title}</h1>
@@ -71,45 +82,35 @@ def generate_html_page(title, content, menu_html, filename):
 def main():
     os.makedirs("public", exist_ok=True)
     
-    # 共通メニューの作成
-    menu_items = ['<a href="index.html" class="nav-link">🏠 ホーム</a>']
-    for loc in LOCATIONS:
-        menu_items.append(f'<a href="{loc["id"]}.html" class="nav-link">📍 {loc["name"]}</a>')
-    menu_html = "\n".join(menu_items)
+    # メニュー作成
+    menu_html = "".join([f'<a href="{loc["id"]}.html" class="nav-link">📍 {loc["name"]}</a>' for loc in LOCATIONS])
+    menu_html = '<a href="index.html" class="nav-link">🏠 Top Page</a>' + menu_html
     
-    # 各ページの生成
-    summaries = []
+    summary_list = []
     for loc in LOCATIONS:
         print(f"Processing {loc['name']}...")
-        data = get_satellite_data(loc['coords'], loc['id'])
+        data = get_satellite_data(loc['coords'])
         
-        # AIによる地域別記事生成
-        prompt = f"場所:{loc['name']} の衛星データNDVI値:{data['ndvi']:.2f}。この場所の環境状況を専門的に解説する短い記事をHTML形式で作成して。"
-        response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        # AIによる記事生成
+        prompt = f"場所:{loc['name']}、NDVI値:{data['ndvi']:.2f}。この地域の植生状況と農業への影響を、専門家として解説するブログ記事をHTML形式で作成して。"
+        ai_article = client.models.generate_content(model='gemini-2.0-flash', contents=prompt).text
         
         content = f"""
         <div class="card">
-            <h3>最新の衛星画像</h3>
-            <img src="{data['img_url']}" class="sat-img" alt="Satellite view">
+            <h2>最新衛星画像分析</h2>
+            <img src="{data['img_url']}" class="sat-img">
+            <p>※Sentinel-2による真カラー合成画像</p>
         </div>
         <div class="card">
-            <h3>解析データ</h3>
-            <p>NDVI（植生指標）: <strong>{data['ndvi']:.4f}</strong></p>
-            {response.text}
+            {ai_article}
         </div>
         """
-        generate_html_page(loc['name'], content, menu_html, f"{loc['id']}.html")
-        summaries.append(f"<li>{loc['name']}: NDVI {data['ndvi']:.2f}</li>")
+        generate_html(loc['name'], content, menu_html, f"{loc['id']}.html")
+        summary_list.append(f"<li><a href='{loc['id']}.html'>{loc['name']}</a>: NDVI {data['ndvi']:.2f}</li>")
 
-    # ホームページの生成
-    home_content = f"""
-    <div class="card">
-        <h2>🌏 全球・日本全国 監視状況</h2>
-        <p>現在、以下の地点をリアルタイム監視中です。</p>
-        <ul>{"".join(summaries)}</ul>
-    </div>
-    """
-    generate_html_page("衛星データ総合ポータル", home_content, menu_html, "index.html")
+    # インデックス（トップ）ページ生成
+    top_content = f"<h2>🌏 監視中エリア一覧</h2><div class='card'><ul>{''.join(summary_list)}</ul></div>"
+    generate_html("衛星データ・グローバルポータル", top_content, menu_html, "index.html")
 
 if __name__ == "__main__":
     main()
