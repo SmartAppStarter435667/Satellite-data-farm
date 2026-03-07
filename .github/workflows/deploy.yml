@@ -1,8 +1,13 @@
 name: AI Satellite Reporter
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**'
   schedule:
-    - cron: '0 0 * * 1' # 毎週月曜日の朝9時（日本時間）に投稿
+    - cron: '0 0 * * 1'
   workflow_dispatch:
 
 jobs:
