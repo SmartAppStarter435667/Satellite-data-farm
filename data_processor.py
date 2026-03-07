@@ -1,51 +1,49 @@
 import os, ee, json, time
 from datetime import datetime, timedelta
 
-# 認証設定
+# 認証
 EE_JSON = os.getenv("EE_SERVICE_ACCOUNT_JSON")
 with open("service_account.json", "w") as f: f.write(EE_JSON)
 ee.Initialize(ee.ServiceAccountCredentials("your-account", "service_account.json"))
 
-# 47都道府県の代表地点 (サンプルとして3件、実際は47件記述)
+# 47都道府県の座標（代表地点）
 PREFECTURES = [
     {"id": "hokkaido", "name": "北海道", "lat": 43.06, "lon": 141.35},
     {"id": "saga", "name": "佐賀県", "lat": 33.26, "lon": 130.30},
     {"id": "tokyo", "name": "東京都", "lat": 35.68, "lon": 139.69},
-    # ... ここに残りの都道府県を追加
+    # 必要に応じて追加
 ]
 
-def get_satellite_info(lat, lon):
+def get_satellite_data(lat, lon):
     try:
         roi = ee.Geometry.Point([lon, lat]).buffer(10000).bounds()
-        # 期間を広げ(90日)、雲が少ない画像をソートして1番良いものを採用
+        # 過去90日から最も雲が少ない画像を取得
         img = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED") \
             .filterBounds(roi) \
             .filterDate(datetime.now() - timedelta(days=90), datetime.now()) \
             .sort('CLOUDY_PIXEL_PERCENTAGE') \
             .first()
 
-        # 画像URL生成 (スケーリング max: 4000 で暗さを解消)
-        url = img.select(['B4', 'B3', 'B2']).getThumbURL({
-            'min': 0, 'max': 4000, 'dimensions': 600, 'format': 'png'
-        })
+        # [span_5](start_span)[span_6](start_span)RGB 3バンドのみを選択してエラーを回避[span_5](end_span)[span_6](end_span)
+        vis_params = {'bands': ['B4', 'B3', 'B2'], 'min': 0, 'max': 4000, 'dimensions': 600, 'format': 'png'}
+        img_url = img.getThumbURL(vis_params)
         
-        # NDVI計算
         ndvi = img.normalizedDifference(['B8', 'B4']).reduceRegion(ee.Reducer.mean(), roi, 30).getInfo().get('NDVI', 0)
         
-        return {"img": url, "ndvi": round(ndvi, 3), "date": img.date().format('YYYY-MM-DD').getInfo()}
-    except:
+        return {"img": img_url, "ndvi": round(ndvi, 3), "date": img.date().format('YYYY-MM-DD').getInfo()}
+    except Exception as e:
+        print(f"Error: {e}")
         return None
 
 def main():
     results = []
     for pref in PREFECTURES:
         print(f"Fetching {pref['name']}...")
-        data = get_satellite_info(pref['lat'], pref['lon'])
+        data = get_satellite_data(pref['lat'], pref['lon'])
         if data:
             results.append({**pref, **data})
-        time.sleep(1) # API負荷軽減
+        [span_7](start_span)time.sleep(2) # Quota制限対策[span_7](end_span)
 
-    # Reactが読み込める場所にJSONを保存
     os.makedirs("frontend/src", exist_ok=True)
     with open("frontend/src/data.json", "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
