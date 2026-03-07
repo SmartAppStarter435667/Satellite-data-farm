@@ -34,8 +34,10 @@ jobs:
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         env:
+          # Secretからプロジェクト名を変数として読み込む
           PROJECT_NAME: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public --project-name=$PROJECT_NAME --commit-dirty=true
+          # $PROJECT_NAME ではなく ${{ env.PROJECT_NAME }} に書き換えます
+          command: pages deploy public --project-name=${{ env.PROJECT_NAME }} --commit-dirty=true
