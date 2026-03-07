@@ -1,67 +1,60 @@
-import React from 'react';
+import React, { useState } from 'react';
 import data from './data.json';
 
 const App = () => {
+  const [tab, setTab] = useState<'japan' | 'overseas'>('japan');
+
   return (
-    <div className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] font-sans selection:bg-blue-200">
-      
-      {/* すりガラス風のナビゲーションバー */}
-      <nav className="sticky top-0 z-50 bg-white/70 backdrop-blur-lg border-b border-black/5">
-        <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
-          <span className="text-xl font-semibold tracking-tight">SatMonitor <span className="text-blue-500">Pro</span></span>
-          <div className="text-sm font-medium text-[#86868b] hidden sm:block">Earth Observation Data</div>
+    <div className="min-h-screen bg-[#F5F5F7] text-[#1D1D1F] font-sans">
+      {/* Navigation (Apple Style) */}
+      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-black/5">
+        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+          <h1 className="text-xl font-bold tracking-tight">衛星お天気ポータル</h1>
+          <div className="flex gap-6">
+            <button onClick={() => setTab('japan')} className={`text-sm font-medium transition-colors ${tab === 'japan' ? 'text-blue-600' : 'text-gray-500 hover:text-black'}`}>日本国内</button>
+            <button onClick={() => setTab('overseas')} className={`text-sm font-medium transition-colors ${tab === 'overseas' ? 'text-blue-600' : 'text-gray-500 hover:text-black'}`}>海外主要都市</button>
+          </div>
         </div>
       </nav>
 
-      {/* ヒーローセクション（大きな見出し） */}
-      <header className="text-center pt-24 pb-16 px-4">
-        <h1 className="text-4xl md:text-6xl font-semibold tracking-tighter mb-5 text-[#1d1d1f]">
-          日本の「今」を、宇宙から。
-        </h1>
-        <p className="text-lg md:text-xl text-[#86868b] font-medium tracking-tight max-w-2xl mx-auto leading-relaxed">
-          最先端のSentinel-2衛星データとGemini AIが、<br className="hidden md:block" />
-          全国の環境変化や農作物の状況をリアルタイムで分析します。
-        </p>
+      {/* Hero Section */}
+      <header className="max-w-5xl mx-auto px-6 pt-16 pb-8">
+        <p className="text-blue-600 font-bold mb-2 uppercase tracking-widest text-xs">Real-time Satellite Insights</p>
+        <h2 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+          {tab === 'japan' ? '日本の大地を見守る' : '世界の今を宇宙から俯瞰する'}
+        </h2>
       </header>
 
-      {/* データカードのグリッド */}
-      <main className="max-w-[1200px] mx-auto px-6 pb-32 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {data.map((p: any) => (
-          <div key={p.id} className="bg-white rounded-[28px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] hover:-translate-y-1 flex flex-col">
-            
-            {/* 画像セクション */}
-            <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
-              <img src={p.img} className="w-full h-full object-cover" alt={p.name} />
-              <div className="absolute bottom-4 right-4 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-semibold text-[#1d1d1f] shadow-sm">
-                {p.date}
+      {/* Grid Layout */}
+      <main className="max-w-5xl mx-auto px-6 pb-24 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {data[tab].map((item: any) => (
+          <div key={item.id} className="bg-white rounded-3xl p-6 shadow-sm border border-black/5 flex flex-col gap-6">
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-2xl font-bold">{item.name}</h3>
+                <p className="text-xs text-gray-400 font-mono mt-1">観測日: {item.date}</p>
+              </div>
+              <div className="bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">
+                {item.temp}℃
               </div>
             </div>
-            
-            {/* コンテンツセクション */}
-            <div className="p-8 flex-grow flex flex-col">
-              <h2 className="text-3xl font-semibold tracking-tight mb-8">{p.name}</h2>
-              
-              {/* 4つの指標（シンプルで洗練された表示） */}
-              <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-8">
-                <StatCard label="植生指数 (NDVI)" val={p.ndvi} color="text-green-600" />
-                <StatCard label="水指数 (NDWI)" val={p.ndwi} color="text-blue-600" />
-                <StatCard label="地表温度" val={`${p.temp}℃`} color="text-orange-500" />
-                <StatCard label="雲量" val={`${p.cloud}%`} color="text-[#86868b]" />
-              </div>
 
-              {/* AI分析セクション */}
-              <div className="mt-auto bg-[#f5f5f7] p-5 rounded-2xl">
-                <div className="flex items-center gap-2 mb-2">
-                  <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
-                  </svg>
-                  <span className="text-xs font-bold text-[#1d1d1f] uppercase tracking-wider">AI Insight</span>
-                </div>
-                <p className="text-sm text-[#1d1d1f] leading-relaxed font-medium">
-                  {p.ai}
-                </p>
-              </div>
+            <div className="aspect-video rounded-2xl overflow-hidden bg-gray-100">
+              <img src={item.img} className="w-full h-full object-cover" alt={item.name} />
+            </div>
 
+            {/* お天気ニュース風 AI要約 */}
+            <div className="bg-[#F5F5F7] p-4 rounded-2xl border-l-4 border-blue-500">
+              <p className="text-sm leading-relaxed font-medium">
+                「{item.ai}」
+              </p>
+            </div>
+
+            {/* 天気予報のような指標表示 */}
+            <div className="grid grid-cols-3 gap-2">
+              <WeatherIcon label="植物の元気" val={item.ndvi > 0.5 ? "満点" : "良好"} sub={`指数:${item.ndvi}`} />
+              <WeatherIcon label="水資源" val={item.ndwi > 0 ? "豊富" : "乾燥"} sub={`指数:${item.ndwi}`} />
+              <WeatherIcon label="観測精度" val={item.cloud < 20 ? "快晴" : "曇り"} sub={`雲:${item.cloud}%`} />
             </div>
           </div>
         ))}
@@ -70,11 +63,11 @@ const App = () => {
   );
 };
 
-// 小さな指標カードコンポーネント
-const StatCard = ({ label, val, color }: any) => (
-  <div className="flex flex-col">
-    <span className="text-[11px] font-bold text-[#86868b] uppercase tracking-wider mb-1">{label}</span>
-    <span className={`text-2xl font-semibold tracking-tight ${color}`}>{val}</span>
+const WeatherIcon = ({ label, val, sub }: any) => (
+  <div className="text-center p-2">
+    <p className="text-[10px] text-gray-400 font-bold mb-1 uppercase tracking-tighter">{label}</p>
+    <p className="text-sm font-bold">{val}</p>
+    <p className="text-[9px] text-gray-400 font-mono">{sub}</p>
   </div>
 );
 
