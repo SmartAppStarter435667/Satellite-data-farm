@@ -1,0 +1,43 @@
+# SATELLITE PRO - Render.com デプロイ設定
+# render.com のダッシュボードで "New > Web Service" を作成した後、
+# このファイルを backend/ に置いてもいいし、
+# ダッシュボードのフォームで手動設定してもOK
+
+services:
+  - type: web
+    name: satellite-pro-api
+    runtime: python
+    rootDir: backend           # リポジトリルートからの相対パス
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    
+    # 無料プラン設定
+    plan: free                 # 750h/月、スリープあり（15分アイドルでスリープ）
+    
+    # ヘルスチェック（スリープ防止にはUptime Robotを併用推奨）
+    healthCheckPath: /
+    
+    # 環境変数（GitHubリポジトリ連携時はSecretsから自動設定可）
+    # Render ダッシュボードの "Environment" タブに以下を追加:
+    envVars:
+      - key: EE_SERVICE_ACCOUNT_JSON
+        sync: false            # ダッシュボードで直接入力（GitHubからは取れない）
+      - key: EE_SERVICE_ACCOUNT_EMAIL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: MONGODB_URI
+        sync: false
+      - key: NEO4J_URI
+        sync: false
+      - key: NEO4J_USER
+        value: neo4j           # AuraDB Freeのデフォルトユーザー名
+      - key: NEO4J_PASS
+        sync: false
+      - key: ALLOWED_ORIGINS
+        # 本番では Cloudflare Pages の URL を設定（カンマ区切り）
+        value: "https://your-project.pages.dev,https://your-custom-domain.com"
