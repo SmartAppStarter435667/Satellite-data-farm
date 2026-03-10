@@ -1,0 +1,123 @@
+name: SATELLITE PRO - Build & Deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * *'  # 毎日日本時間11時（UTC 2時）に衛星データ更新
+  workflow_dispatch:
+    inputs:
+      update_satellite:
+        description: '衛星データも更新する'
+        required: false
+        default: 'true'
+
+jobs:
+  # =============================================
+  # Job 1: 衛星データ取得 → Supabase + JSON保存
+  # =============================================
+  fetch-satellite-data:
+    name: Fetch Satellite Data (GEE + Gemini)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event.inputs.update_satellite == 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: pip install earthengine-api google-genai supabase exifread pymongo neo4j
+
+      - name: Fetch & save satellite data
+        env:
+          EE_SERVICE_ACCOUNT_JSON: ${{ secrets.EE_SERVICE_ACCOUNT_JSON }}
+          EE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.EE_SERVICE_ACCOUNT_EMAIL }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USER: neo4j
+          NEO4J_PASS: ${{ secrets.NEO4J_PASS }}
+        # ★ 修正: data_processor_v2.py を正しく参照
+        run: python data_processor_v2.py
+
+      - name: Upload data artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: satellite-data
+          # ★ 修正: apps/globe-gl/ に出力パスを変更
+          path: apps/globe-gl/src/data.json
+          retention-days: 7
+
+  # =============================================
+  # Job 2: フロントエンドビルド → Cloudflare Pages
+  # =============================================
+  build-and-deploy:
+    name: Build & Deploy Frontend (Globe.GL)
+    runs-on: ubuntu-latest
+    needs: [fetch-satellite-data]
+    if: always()
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download satellite data (if available)
+        uses: actions/download-artifact@v4
+        with:
+          name: satellite-data
+          # ★ 修正: apps/globe-gl/src/ に展開
+          path: apps/globe-gl/src/
+        continue-on-error: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          # ★ 修正: apps/globe-gl/ の package-lock.json を参照
+          cache-dependency-path: apps/globe-gl/package-lock.json
+
+      - name: Install & Build Frontend
+        run: |
+          cd apps/globe-gl
+          npm ci
+          npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          VITE_API_BASE_URL: ${{ secrets.RENDER_API_URL }}
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >
+            pages deploy apps/globe-gl/dist
+            --project-name=${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+            --commit-dirty=true
+
+  # =============================================
+  # Job 3: バックエンドのヘルスチェック
+  # =============================================
+  health-check:
+    name: API Health Check
+    runs-on: ubuntu-latest
+    needs: [build-and-deploy]
+    if: always()
+
+    steps:
+      - name: Check Render API health
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${{ secrets.RENDER_API_URL }}/")
+          echo "API Status: $STATUS"
+          if [ "$STATUS" != "200" ]; then
+            echo "⚠️ API not healthy (may be sleeping). Cold start is expected on free plan."
+          fi
+        continue-on-error: true
